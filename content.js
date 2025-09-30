@@ -133,11 +133,14 @@ const getTranscript = async () => {
 
             for (const item of menuItems) {
                 // The icon for "Show transcript" is typically 'assignment'.
-                const icon = item.querySelector('yt-icon.ytd-menu-service-item-renderer');
-                if (icon && icon.icon === 'yt-icons:assignment') {
-                    showTranscriptButton = item;
-                    console.log("LOG: Found 'Show transcript' button by its icon ('assignment').");
-                    break;
+                const icon = item.querySelector('yt-icon'); // Corrected selector
+                if (icon) {
+                    console.log(`LOG: Checking menu item... Found icon: "${icon.icon}"`);
+                    if (icon.icon === 'yt-icons:assignment') {
+                        showTranscriptButton = item;
+                        console.log("LOG: Found 'Show transcript' button by its icon ('assignment').");
+                        break;
+                    }
                 }
             }
 
