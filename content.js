@@ -115,7 +115,9 @@ const getTranscript = async () => {
 
         if (!transcriptPanel) {
             console.log("LOG: Transcript panel not found. Attempting to open it.");
-            const moreActionsButton = document.querySelector('ytd-watch-metadata #actions button[aria-label="More actions"]');
+            // This selector is more robust as it finds the button structurally, independent of language.
+            // It looks for the button inside the menu renderer within the video's action bar.
+            const moreActionsButton = document.querySelector('ytd-watch-metadata #actions ytd-menu-renderer button');
             if (!clickElement(moreActionsButton)) {
                 console.warn("LOG: 'More actions' (...) button not found. Cannot open transcript menu.");
                 return null;
