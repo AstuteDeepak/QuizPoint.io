@@ -107,54 +107,79 @@ const triggerQuiz = async () => {
 
 // New, robust transcript extraction logic
 const getTranscript = async () => {
-    console.log("Attempting to extract transcript...");
+    console.log("LOG: Starting transcript extraction process...");
     try {
         // --- Step 1: Open the transcript panel if it's not already open ---
         let transcriptPanel = document.querySelector('ytd-transcript-renderer');
         let justOpened = false;
 
         if (!transcriptPanel) {
-            console.log("Transcript panel not found, attempting to open it.");
-            // The "More actions" button is inside the metadata section
+            console.log("LOG: Transcript panel not found. Attempting to open it.");
             const moreActionsButton = document.querySelector('ytd-watch-metadata #actions button[aria-label="More actions"]');
             if (!clickElement(moreActionsButton)) {
-                console.warn("More actions button not found.");
+                console.warn("LOG: 'More actions' (...) button not found. Cannot open transcript menu.");
                 return null;
             }
+            console.log("LOG: 'More actions' (...) button clicked successfully.");
             await sleep(500); // Wait for menu to appear
 
-            // Find and click "Show transcript" menu item
+            // Find and click "Show transcript" menu item.
+            // This method is more robust as it looks for the button's icon, which is language-independent.
+            console.log("LOG: Searching for 'Show transcript' button in the menu...");
             const menuItems = document.querySelectorAll('ytd-menu-service-item-renderer');
-            let showTranscriptButton;
-            menuItems.forEach(item => {
-                const buttonText = item.querySelector('yt-formatted-string');
-                if (buttonText && buttonText.textContent.trim().toLowerCase() === 'show transcript') {
+            let showTranscriptButton = null;
+
+            for (const item of menuItems) {
+                // The icon for "Show transcript" is typically 'assignment'.
+                const icon = item.querySelector('yt-icon.ytd-menu-service-item-renderer');
+                if (icon && icon.icon === 'yt-icons:assignment') {
                     showTranscriptButton = item;
+                    console.log("LOG: Found 'Show transcript' button by its icon ('assignment').");
+                    break;
                 }
-            });
+            }
+
+            // Fallback to text search if the icon method fails (in case YouTube changes icons)
+            if (!showTranscriptButton) {
+                console.warn("LOG: Could not find button by icon. Falling back to text search.");
+                for (const item of menuItems) {
+                    const buttonText = item.querySelector('yt-formatted-string');
+                    if (buttonText && buttonText.textContent.trim().toLowerCase() === 'show transcript') {
+                        showTranscriptButton = item;
+                        console.log("LOG: Found 'Show transcript' button by text search fallback.");
+                        break;
+                    }
+                }
+            }
 
             if (!clickElement(showTranscriptButton)) {
-                console.warn("Show transcript button not found in the menu.");
-                clickElement(moreActionsButton); // Attempt to close the menu
+                console.warn("LOG: Failed to find and click 'Show transcript' button using all methods. Aborting.");
+                clickElement(moreActionsButton); // Attempt to close the menu to clean up
                 return null;
             }
+            console.log("LOG: 'Show transcript' button clicked successfully.");
 
             // Wait for transcript panel to appear
             await sleep(1000);
             transcriptPanel = document.querySelector('ytd-transcript-renderer');
             if (!transcriptPanel) {
-                console.warn("Transcript panel did not appear after clicking 'Show transcript'.");
+                console.warn("LOG: Transcript panel did not appear after clicking the button.");
                 return null;
             }
+            console.log("LOG: Transcript panel is now visible.");
             justOpened = true;
+        } else {
+            console.log("LOG: Transcript panel was already open.");
         }
 
         // --- Step 2: Extract the text from the transcript ---
+        console.log("LOG: Extracting text from transcript segments...");
         const transcriptSegments = transcriptPanel.querySelectorAll('ytd-transcript-segment-renderer');
         if (transcriptSegments.length === 0) {
-            console.warn("Could not find transcript segments on the page.");
+            console.warn("LOG: Found transcript panel, but it contains no segments.");
             return null;
         }
+        console.log(`LOG: Found ${transcriptSegments.length} transcript segments.`);
 
         let relevantText = "";
         const startTime = nextQuizTime - (quizInterval * 60);
@@ -182,21 +207,25 @@ const getTranscript = async () => {
 
         // --- Step 3: Close the transcript panel if we opened it ---
         if (justOpened) {
+            console.log("LOG: Closing transcript panel to clean up UI.");
             const closeButton = transcriptPanel.querySelector('#header #button');
-            clickElement(closeButton);
-            console.log("Transcript panel closed to clean up UI.");
+            if (!clickElement(closeButton)) {
+                console.warn("LOG: Could not find the close button for the transcript panel.");
+            } else {
+                console.log("LOG: Transcript panel closed.");
+            }
         }
 
         if (relevantText.trim() === "") {
-            console.warn("Could not extract any relevant transcript text for the given time range.");
+            console.warn("LOG: Extracted no relevant text for the current time range.");
             return null;
         }
 
-        console.log("Successfully extracted transcript.");
+        console.log("LOG: Transcript extraction successful.");
         return relevantText.trim();
 
     } catch (error) {
-        console.error("An error occurred during transcript extraction:", error);
+        console.error("LOG: An unexpected error occurred during transcript extraction:", error);
         // Ensure UI cleanup happens even if there's an error during parsing
         const transcriptPanelCloseButton = document.querySelector('ytd-transcript-renderer #header #button');
         if (transcriptPanelCloseButton) clickElement(transcriptPanelCloseButton);
